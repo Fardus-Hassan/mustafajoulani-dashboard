@@ -89,7 +89,9 @@ export default function Sidebar() {
   const sidebar = (
     <aside className="flex h-full w-64 flex-col bg-[#F8FAFC] border-r border-gray-200/80">
       <div className="flex h-16 items-center justify-between gap-2 border-b border-gray-200/80 px-5">
-        <Image src="/logo.png" alt="Logo" width={40} height={40} className="shrink-0" />
+        <Link href="/">
+          <Image src="/logo.png" alt="Logo" width={40} height={40} className="shrink-0" />
+        </Link>
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
@@ -110,8 +112,8 @@ export default function Sidebar() {
               href={href}
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-colors ${active
-                  ? "bg-[#D0E3F5] text-[#1e5a9e]"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                ? "bg-[#D0E3F5] text-[#1e5a9e]"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
             >
               <Icon active={active} />
@@ -172,9 +174,8 @@ export default function Sidebar() {
         />
       )}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform md:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform md:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {sidebar}
       </div>
