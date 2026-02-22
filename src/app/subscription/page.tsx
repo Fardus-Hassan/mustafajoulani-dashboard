@@ -1,43 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PlanCard, { type Plan } from "@/components/PlanCard";
+import PlanFormModal from "@/components/PlanFormModal";
+import { useAppSelector } from "@/store/hooks";
+import {
+  getSubscriptionPlans,
+  deleteSubscriptionPlan,
+} from "@/lib/api/subscription";
+import type { SubscriptionPlan } from "@/lib/api/subscription";
+import toast from "react-hot-toast";
 
-const defaultPlans: Plan[] = [
-  {
-    id: "base",
-    name: "Base Plan",
-    price: "$9.99",
-    period: "monthly",
-    description: "Good for individuals",
-    features: [
-      { text: "1 Email Account", included: true },
-      { text: "1 Phone Number", included: true },
-      { text: "Basic Support", included: true },
-      { text: "Relationship Automation", included: false },
-      { text: "Advanced AI Actions", included: false },
-      { text: "Priority Support", included: false },
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium Plan",
-    price: "$29.99",
-    period: "monthly",
-    description: "Best for growing teams",
-    features: [
-      { text: "Unlimited Email Accounts", included: true },
-      { text: "Unlimited Phone Numbers", included: true },
-      { text: "Relationship Automation", included: true },
-      { text: "Advanced AI Actions", included: true },
-      { text: "Priority Support", included: true },
-      { text: "Custom Integrations", included: true },
-    ],
-  },
-];
+function formatPrice(price: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
+function mapApiPlanToPlan(api: SubscriptionPlan): Plan {
+  return {
+    id: api.id,
+    name: api.name,
+    price: formatPrice(api.price, api.currency),
+    period: api.billingPeriod.toLowerCase(),
+    description: api.description || "",
+    features: api.features.map((f) => ({
+      text: f.label,
+      included: f.enabled,
+    })),
+  };
+}
 
 export default function SubscriptionPlansPage() {
-  const [plans] = useState<Plan[]>(defaultPlans);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [apiPlans, setApiPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+
+  const fetchPlans = useCallback(() => {
+    if (!accessToken) return;
+    getSubscriptionPlans(accessToken).then((result) => {
+      setLoading(false);
+      if (result.ok) {
+        setApiPlans(result.data);
+        setPlans(result.data.map(mapApiPlanToPlan));
+        setError("");
+      } else {
+        setError(result.message);
+        setPlans([]);
+        setApiPlans([]);
+      }
+    });
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      const id = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(id);
+    }
+    fetchPlans();
+  }, [accessToken, fetchPlans]);
+
+  function openCreateModal() {
+    setModalMode("create");
+    setEditingPlan(null);
+    setModalOpen(true);
+  }
+
+  function openEditModal(planId: string) {
+    const apiPlan = apiPlans.find((p) => p.id === planId);
+    if (apiPlan) {
+      setModalMode("edit");
+      setEditingPlan(apiPlan);
+      setModalOpen(true);
+    }
+  }
+
+  function handleDelete(planId: string) {
+    if (!accessToken) return;
+    if (!confirm("Are you sure you want to delete this plan?")) return;
+    deleteSubscriptionPlan(accessToken, planId).then((result) => {
+      if (result.ok) {
+        toast.success("Plan deleted");
+        fetchPlans();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] px-6 py-10 md:px-8 md:py-12 lg:px-12 lg:py-14">
@@ -54,7 +111,8 @@ export default function SubscriptionPlansPage() {
           </div>
           <button
             type="button"
-            className="flex shrink-0 items-center justify-center gap-2.5 rounded-full bg-[#3E8DB9] px-6 py-3.5 text-base font-normal text-white transition-colors hover:bg-[#1d4ed8] md:px-8 md:py-4"
+            onClick={openCreateModal}
+            className="flex shrink-0 items-center justify-center gap-2.5 rounded-full bg-[#3E8DB9] px-6 py-3.5 text-base font-normal text-white transition-colors hover:bg-[#3E8DB9]/70 md:px-8 md:py-4"
           >
             Create New Plan
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
@@ -65,16 +123,36 @@ export default function SubscriptionPlansPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 xl:grid-cols-3 md:gap-10">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              onEdit={() => {}}
-              onDelete={() => {}}
-            />
-          ))}
-        </div>
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
+        {loading ? (
+          <div className="py-12 text-center text-gray-500">Loading plans…</div>
+        ) : plans.length === 0 && !error ? (
+          <div className="py-12 text-center text-gray-500">No subscription plans yet</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 xl:grid-cols-3 md:gap-10">
+            {plans.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onEdit={() => openEditModal(plan.id)}
+                onDelete={() => handleDelete(plan.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        <PlanFormModal
+          open={modalOpen}
+          mode={modalMode}
+          initialData={editingPlan}
+          accessToken={accessToken}
+          onClose={() => setModalOpen(false)}
+          onSuccess={fetchPlans}
+        />
       </div>
     </div>
   );

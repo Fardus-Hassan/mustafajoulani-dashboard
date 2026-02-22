@@ -62,18 +62,18 @@ export default function PlanCard({ plan, onEdit, onDelete }: PlanCardProps) {
           background: "linear-gradient(180deg, #3E8DB9 0%, #3E8DB980 100%)",
         }}
       >
-        <h3 className="text-xl font-bold text-white md:text-2xl">{plan.name}</h3>
+        <h3 className="text-xl font-bold text-white">{plan.name}</h3>
         <p className="mt-2 flex items-baseline gap-1.5">
-          <span className="text-4xl font-bold leading-none text-white md:text-5xl">{plan.price}</span>
+          <span className="text-4xl font-bold leading-none text-white">{plan.price}</span>
           <span className="text-base font-normal text-white/95">/{periodLabel}</span>
         </p>
       </div>
       {/* White body */}
       <div className="flex flex-1 flex-col px-6 pb-6 pt-5 md:px-8 md:pb-8 md:pt-6">
-        <p className="text-base font-normal text-gray-600 md:text-[17px]">{plan.description}</p>
+        <p className="text-base font-normal text-gray-600">{plan.description}</p>
         <ul className="mt-5 space-y-4 md:mt-6 md:space-y-[18px]">
           {plan.features.map((f, i) => (
-            <li key={i} className="flex items-center gap-3 text-base font-normal text-gray-700 md:text-[17px]">
+            <li key={i} className="flex items-center gap-3 text-base font-normal text-gray-700">
               {f.included ? <CheckIcon /> : <EmptyCircleIcon />}
               <span>{f.text}</span>
             </li>
@@ -83,7 +83,7 @@ export default function PlanCard({ plan, onEdit, onDelete }: PlanCardProps) {
           <button
             type="button"
             onClick={onDelete}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-500 bg-white py-3.5 text-base font-normal text-red-500 transition-colors hover:bg-red-50 md:py-4"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-500 bg-white py-3.5 text-sm font-normal text-red-500 transition-colors hover:bg-red-50"
           >
             Delete
             <TrashIcon />
@@ -91,7 +91,7 @@ export default function PlanCard({ plan, onEdit, onDelete }: PlanCardProps) {
           <button
             type="button"
             onClick={onEdit}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#3E8DB9] py-3.5 text-base font-normal text-white transition-colors hover:bg-blue-600 md:py-4"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#3E8DB9] py-3.5 text-sm font-normal text-white transition-colors hover:bg-[#3E8DB9]/70 "
           >
             Edit
             <PencilIcon />
