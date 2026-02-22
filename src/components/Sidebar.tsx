@@ -2,14 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import AvatarPlaceholder from "./AvatarPlaceholder";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import toast from "react-hot-toast";
 import { logout, clearAuthStorage } from "@/store/slices/authSlice";
 
-const AVATAR_PLACEHOLDER = "/avatar-placeholder.svg";
+const FALLBACK_IMAGE = "/user.png";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: GridIcon },
@@ -67,10 +66,12 @@ export default function Sidebar() {
   const adminSettings = useAppSelector((s) => s.adminSettings.data);
   const authUser = useAppSelector((s) => s.auth.user);
   const settingsImage = adminSettings?.image;
+  const hasImage =
+    settingsImage != null && settingsImage !== "";
   const profileImage =
-    adminSettings != null && (settingsImage == null || settingsImage === "")
-      ? AVATAR_PLACEHOLDER
-      : (settingsImage || authUser?.profileImage || AVATAR_PLACEHOLDER);
+    adminSettings == null || !hasImage
+      ? FALLBACK_IMAGE
+      : (settingsImage || authUser?.profileImage || FALLBACK_IMAGE);
 
   function handleLogout() {
     dispatch(logout());
@@ -117,17 +118,13 @@ export default function Sidebar() {
       <div className="border-t border-gray-200/80 p-4">
         <div className="flex items-center gap-3 px-1 py-2">
           <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
-            {profileImage === AVATAR_PLACEHOLDER ? (
-              <AvatarPlaceholder className="absolute inset-0 h-full w-full" />
-            ) : (
-              <Image
-                src={profileImage}
-                alt="Profile"
-                fill
-                sizes="44px"
-                className="object-cover"
-              />
-            )}
+            <Image
+              src={profileImage}
+              alt="Profile"
+              fill
+              sizes="44px"
+              className="object-cover"
+            />
           </div>
           <button
             type="button"

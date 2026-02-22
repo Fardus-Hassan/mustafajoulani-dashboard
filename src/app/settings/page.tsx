@@ -1,11 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import AvatarPlaceholder from "@/components/AvatarPlaceholder";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { useAppSelector } from "@/store/hooks";
-import { updatePassword } from "@/lib/api/settings";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { setAdminSettings } from "@/store/slices/adminSettingsSlice";
+import {
+  updateProfile,
+  updateProfilePhoto,
+  updatePassword,
+} from "@/lib/api/settings";
 
 function PersonIcon() {
   return (
@@ -37,12 +41,19 @@ function LockIcon() {
 const inputClass =
   "mt-1.5 w-full rounded-lg border border-[#3E8DB9]/30 bg-[#E8F4FC] px-4 py-3 text-base text-gray-800 placeholder-gray-500 focus:border-[#3E8DB9] focus:outline-none focus:ring-1 focus:ring-[#3E8DB9]";
 
-const AVATAR_PLACEHOLDER = "/avatar-placeholder.svg";
+const FALLBACK_IMAGE = "/user.png";
 
 export default function SettingsPage() {
+  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const accessToken = useAppSelector((s) => s.auth.accessToken);
   const adminSettings = useAppSelector((s) => s.adminSettings.data);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [isPasswordEditing, setIsPasswordEditing] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [profile, setProfile] = useState({
@@ -57,10 +68,12 @@ export default function SettingsPage() {
   });
 
   const settingsImage = adminSettings?.image;
+  const hasImage =
+    settingsImage != null && settingsImage !== "";
   const profileImage =
-    adminSettings != null && (settingsImage == null || settingsImage === "")
-      ? AVATAR_PLACEHOLDER
-      : (settingsImage || user?.profileImage || AVATAR_PLACEHOLDER);
+    adminSettings == null || !hasImage
+      ? FALLBACK_IMAGE
+      : (settingsImage || user?.profileImage || FALLBACK_IMAGE);
 
   useEffect(() => {
     if (adminSettings) {
@@ -127,11 +140,78 @@ export default function SettingsPage() {
     }
     toast.success(result.message);
     setPassword({ current: "", new: "", confirm: "" });
+    setIsPasswordEditing(false);
   }
 
-  function handleCancel() {
+  function handleCancelPassword() {
     setPassword({ current: "", new: "", confirm: "" });
     setPasswordError("");
+    setIsPasswordEditing(false);
+  }
+
+  async function handleSaveProfile() {
+    setProfileError("");
+    const trimmedFirst = profile.firstName.trim();
+    const trimmedLast = profile.lastName.trim();
+    const trimmedEmail = profile.email.trim();
+    if (!trimmedFirst || !trimmedLast) {
+      setProfileError("First name and last name are required");
+      return;
+    }
+    if (!trimmedEmail) {
+      setProfileError("Email is required");
+      return;
+    }
+    if (!accessToken) {
+      toast.error("You must be logged in");
+      return;
+    }
+    setSavingProfile(true);
+    const result = await updateProfile(accessToken, {
+      firstName: trimmedFirst,
+      lastName: trimmedLast,
+      email: trimmedEmail,
+    });
+    setSavingProfile(false);
+    if (!result.ok) {
+      setProfileError(result.message);
+      toast.error(result.message);
+      return;
+    }
+    dispatch(setAdminSettings(result.data));
+    toast.success("Profile updated");
+    setIsProfileEditing(false);
+  }
+
+  function handleCancelProfile() {
+    if (adminSettings) {
+      setProfile({
+        firstName: adminSettings.firstName ?? "",
+        lastName: adminSettings.lastName ?? "",
+        email: adminSettings.email ?? "",
+      });
+    }
+    setProfileError("");
+    setIsProfileEditing(false);
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !accessToken) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploadingPhoto(true);
+    const result = await updateProfilePhoto(accessToken, file);
+    setUploadingPhoto(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    dispatch(setAdminSettings(result.data));
+    toast.success("Profile photo updated");
   }
 
   return (
@@ -156,39 +236,52 @@ export default function SettingsPage() {
                 Profile Information
               </h2>
             </div>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-[#3E8DB9] hover:bg-[#E8F4FC]"
-              aria-label="Edit profile"
-            >
-              <PencilIcon />
-            </button>
+            {!isProfileEditing && (
+              <button
+                type="button"
+                onClick={() => setIsProfileEditing(true)}
+                className="rounded-lg p-2 text-[#3E8DB9] hover:bg-[#E8F4FC]"
+                aria-label="Edit profile"
+              >
+                <PencilIcon />
+              </button>
+            )}
           </div>
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
           <div className="space-y-5">
+            {profileError && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                {profileError}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Profile Photo
               </label>
               <div className="mt-1.5 flex items-center gap-4">
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-[#E8F4FC] ring-2 ring-[#3E8DB9]/20">
-                  {profileImage === AVATAR_PLACEHOLDER ? (
-                    <AvatarPlaceholder className="absolute inset-0 h-full w-full " />
-                  ) : (
-                    <Image
-                      src={profileImage}
-                      alt="Profile"
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                    />
-                  )}
+                  <Image
+                    src={profileImage}
+                    alt="Profile"
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                  />
                 </div>
                 <button
                   type="button"
-                  className="rounded-lg border border-[#3E8DB9] bg-white px-4 py-2.5 text-sm font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC]"
+                  disabled={uploadingPhoto}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-lg border border-[#3E8DB9] bg-white px-4 py-2.5 text-sm font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC] disabled:opacity-50"
                 >
-                  Change Photo
+                  {uploadingPhoto ? "Uploading…" : "Change Photo"}
                 </button>
               </div>
             </div>
@@ -204,7 +297,8 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setProfile((p) => ({ ...p, firstName: e.target.value }))
                   }
-                  className={inputClass}
+                  readOnly={!isProfileEditing}
+                  className={`${inputClass} ${!isProfileEditing ? "cursor-default bg-gray-50" : ""}`}
                   placeholder="First name"
                 />
               </div>
@@ -218,7 +312,8 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setProfile((p) => ({ ...p, lastName: e.target.value }))
                   }
-                  className={inputClass}
+                  readOnly={!isProfileEditing}
+                  className={`${inputClass} ${!isProfileEditing ? "cursor-default bg-gray-50" : ""}`}
                   placeholder="Last name"
                 />
               </div>
@@ -234,10 +329,32 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setProfile((p) => ({ ...p, email: e.target.value }))
                 }
-                className={inputClass}
+                readOnly={!isProfileEditing}
+                className={`${inputClass} ${!isProfileEditing ? "cursor-default bg-gray-50" : ""}`}
                 placeholder="you@example.com"
               />
             </div>
+
+            {isProfileEditing && (
+              <div className="flex gap-3 pt-4 border-t border-[#3E8DB9]/20">
+                <button
+                  type="button"
+                  onClick={handleCancelProfile}
+                  disabled={savingProfile}
+                  className="rounded-lg border border-[#3E8DB9] bg-white px-5 py-2.5 text-sm font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="rounded-lg bg-[#3E8DB9] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#2d7aa8] disabled:opacity-50"
+                >
+                  {savingProfile ? "Saving…" : "Save"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -250,13 +367,16 @@ export default function SettingsPage() {
                 Password Settings
               </h2>
             </div>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-[#3E8DB9] hover:bg-[#E8F4FC]"
-              aria-label="Edit password"
-            >
-              <PencilIcon />
-            </button>
+            {!isPasswordEditing && (
+              <button
+                type="button"
+                onClick={() => setIsPasswordEditing(true)}
+                className="rounded-lg p-2 text-[#3E8DB9] hover:bg-[#E8F4FC]"
+                aria-label="Edit password"
+              >
+                <PencilIcon />
+              </button>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -275,7 +395,8 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setPassword((p) => ({ ...p, current: e.target.value }))
                 }
-                className={inputClass}
+                readOnly={!isPasswordEditing}
+                className={`${inputClass} ${!isPasswordEditing ? "cursor-default bg-gray-50" : ""}`}
                 placeholder="••••••••"
               />
             </div>
@@ -289,7 +410,8 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setPassword((p) => ({ ...p, new: e.target.value }))
                 }
-                className={inputClass}
+                readOnly={!isPasswordEditing}
+                className={`${inputClass} ${!isPasswordEditing ? "cursor-default bg-gray-50" : ""}`}
                 placeholder="••••••••"
               />
             </div>
@@ -303,30 +425,33 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setPassword((p) => ({ ...p, confirm: e.target.value }))
                 }
-                className={inputClass}
+                readOnly={!isPasswordEditing}
+                className={`${inputClass} ${!isPasswordEditing ? "cursor-default bg-gray-50" : ""}`}
                 placeholder="••••••••"
               />
             </div>
-          </div>
-        </div>
 
-        {/* Action buttons - bottom right */}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="rounded-lg border border-[#3E8DB9] bg-white px-6 py-3 text-base font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSavePassword}
-            disabled={savingPassword}
-            className="rounded-lg bg-[#3E8DB9] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[#2d7aa8] disabled:opacity-60"
-          >
-            {savingPassword ? "Saving…" : "Save"}
-          </button>
+            {isPasswordEditing && (
+              <div className="flex gap-3 pt-4 border-t border-[#3E8DB9]/20">
+                <button
+                  type="button"
+                  onClick={handleCancelPassword}
+                  disabled={savingPassword}
+                  className="rounded-lg border border-[#3E8DB9] bg-white px-5 py-2.5 text-sm font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSavePassword}
+                  disabled={savingPassword}
+                  className="rounded-lg bg-[#3E8DB9] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#2d7aa8] disabled:opacity-50"
+                >
+                  {savingPassword ? "Saving…" : "Save"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

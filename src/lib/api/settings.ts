@@ -40,6 +40,63 @@ export async function getAdminSettings(
   return { ok: true, data: json.data };
 }
 
+export type UpdateProfileBody = {
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+export async function updateProfile(
+  accessToken: string,
+  body: UpdateProfileBody
+): Promise<
+  | { ok: true; data: AdminSettingsData }
+  | { ok: false; message: string }
+> {
+  const res = await fetch(getApiUrl("/admin/settings/profile"), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json()) as AdminSettingsResponse;
+  if (!res.ok) {
+    return { ok: false, message: json.message ?? "Failed to update profile" };
+  }
+  if (!json.success || !json.data) {
+    return { ok: false, message: json.message ?? "Invalid response" };
+  }
+  return { ok: true, data: json.data };
+}
+
+export async function updateProfilePhoto(
+  accessToken: string,
+  file: File
+): Promise<
+  | { ok: true; data: AdminSettingsData }
+  | { ok: false; message: string }
+> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(getApiUrl("/admin/settings/profile/photo"), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+  const json = (await res.json()) as AdminSettingsResponse;
+  if (!res.ok) {
+    return { ok: false, message: json.message ?? "Failed to update photo" };
+  }
+  if (!json.success || !json.data) {
+    return { ok: false, message: json.message ?? "Invalid response" };
+  }
+  return { ok: true, data: json.data };
+}
+
 export type UpdatePasswordBody = {
   oldPassword: string;
   newPassword: string;
