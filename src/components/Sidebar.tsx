@@ -2,8 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import toast from "react-hot-toast";
+import { logout, clearAuthStorage } from "@/store/slices/authSlice";
+
+const AVATAR_PLACEHOLDER = "/avatar-placeholder.svg";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: GridIcon },
@@ -55,7 +60,21 @@ function SettingsIcon({ active }: { active?: boolean }) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const adminSettings = useAppSelector((s) => s.adminSettings.data);
+  const authUser = useAppSelector((s) => s.auth.user);
+  const profileImage =
+    adminSettings?.image ?? authUser?.profileImage ?? AVATAR_PLACEHOLDER;
+
+  function handleLogout() {
+    dispatch(logout());
+    clearAuthStorage();
+    toast.success("Logged out successfully");
+    setMobileOpen(false);
+    router.replace("/login");
+  }
 
   const sidebar = (
     <aside className="flex h-full w-64 flex-col bg-[#F8FAFC] border-r border-gray-200/80">
@@ -93,10 +112,19 @@ export default function Sidebar() {
       </nav>
       <div className="border-t border-gray-200/80 p-4">
         <div className="flex items-center gap-3 px-1 py-2">
-          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200" aria-hidden />
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
+            <Image
+              src={profileImage}
+              alt="Profile"
+              fill
+              sizes="44px"
+              className="object-cover"
+            />
+          </div>
           <button
             type="button"
-            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-red-500 bg-white px-4 py-3 text-base font-medium text-red-500 transition-colors hover:bg-red-50"
+            onClick={handleLogout}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-red-500 bg-white px-4 py-3 text-base font-medium text-red-500 transition-colors hover:bg-red-50"
           >
             Logout
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
