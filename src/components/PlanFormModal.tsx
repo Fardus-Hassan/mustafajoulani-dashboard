@@ -306,7 +306,7 @@ export default function PlanFormModal({
                       type="text"
                       value={f.label}
                       onChange={(e) => updateFeature(i, "label", e.target.value)}
-                      className="min-w-0 flex-1 border-0 bg-transparent py-1 text-base text-gray-900 placeholder-gray-500 focus:ring-0"
+                      className="min-w-0 flex-1 outline-none border-0 bg-transparent py-1 text-base text-gray-900 placeholder-gray-500 focus:ring-0"
                       placeholder="Enter feature"
                     />
                     <button

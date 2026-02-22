@@ -254,9 +254,9 @@ export default function DashboardPage() {
           <table className="w-full min-w-[400px] text-left text-base">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Plan Name</th>
-                <th className="pb-4 pt-1 text-right text-base font-semibold md:text-lg">Users</th>
-                <th className="pb-4 pt-1 text-right text-base font-semibold md:text-lg">Price</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg ">Plan Name</th>
+                <th className="pb-4 pt-1 text-center text-base font-semibold md:text-lg">Users</th>
+                <th className="pb-4 pt-1 text-center text-base font-semibold md:text-lg">Price</th>
                 <th className="pb-4 pt-1 text-right text-base font-semibold md:text-lg">Total Revenue</th>
               </tr>
             </thead>
@@ -271,10 +271,10 @@ export default function DashboardPage() {
                 subscriptionPlans.map((row) => (
                   <tr key={row.planId} className="border-b border-gray-100">
                     <td className="py-4 text-base font-medium text-gray-900 md:text-lg">{row.planName}</td>
-                    <td className="py-4 text-right text-base text-gray-700 md:text-lg">
+                    <td className="py-4 text-base text-gray-700 md:text-lg text-center">
                       {row.users.toLocaleString()}
                     </td>
-                    <td className="py-4 text-right text-base text-gray-700 md:text-lg">
+                    <td className="py-4 text-center text-base text-gray-700 md:text-lg">
                       {formatRevenue(row.price)}
                     </td>
                     <td className="py-4 text-right text-base text-gray-700 md:text-lg">
@@ -379,13 +379,13 @@ export default function DashboardPage() {
           <table className="w-full min-w-[700px] text-left text-base">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">User</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Email</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Plan</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Price</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Status</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Next Billing</th>
-                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Auto Renew</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-left">User</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-center">Email</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-center">Plan</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-center">Price</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-center">Status</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-center">Next Billing</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg text-right">Auto Renew</th>
               </tr>
             </thead>
             <tbody>
@@ -404,23 +404,23 @@ export default function DashboardPage() {
               ) : (
                 users.map((row) => (
                   <tr key={row.userId} className="border-b border-gray-100">
-                    <td className="py-4 text-base font-medium text-gray-900 md:text-lg">
+                    <td className="py-4 text-base font-medium text-gray-900 md:text-lg text-left">
                       {row.name || "—"}
                     </td>
-                    <td className="py-4 text-base text-gray-600 md:text-lg">{row.email}</td>
-                    <td className="py-4 text-base text-gray-700 md:text-lg">
+                    <td className="py-4 text-base text-gray-600 md:text-lg text-center">{row.email}</td>
+                    <td className="py-4 text-base text-gray-700 md:text-lg text-center">
                       {row.planName || "N/A"}
                     </td>
-                    <td className="py-4 text-base text-gray-700 md:text-lg">
+                    <td className="py-4 text-base text-gray-700 md:text-lg text-center">
                       {formatRevenue(row.planPrice)}
                     </td>
-                    <td className="py-4">
+                    <td className="py-4 text-center">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="py-4 text-base text-gray-600 md:text-lg">
+                    <td className="py-4 text-base text-gray-600 md:text-lg text-center">
                       {formatDate(row.nextBilling)}
                     </td>
-                    <td className="py-4 text-base text-gray-600 md:text-lg">
+                    <td className="py-4 text-base text-gray-600 md:text-lg text-right">
                       {row.autoRenew ? "Yes" : "No"}
                     </td>
                   </tr>
