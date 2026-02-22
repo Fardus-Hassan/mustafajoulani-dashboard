@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PlanCard, { type Plan } from "@/components/PlanCard";
 import PlanFormModal from "@/components/PlanFormModal";
+import { SkeletonPlanCard } from "@/components/Skeleton";
 import { useAppSelector } from "@/store/hooks";
 import {
   getSubscriptionPlans,
@@ -129,7 +130,11 @@ export default function SubscriptionPlansPage() {
           </div>
         )}
         {loading ? (
-          <div className="py-12 text-center text-gray-500">Loading plans…</div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 xl:grid-cols-3 md:gap-10">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <SkeletonPlanCard key={i} />
+            ))}
+          </div>
         ) : plans.length === 0 && !error ? (
           <div className="py-12 text-center text-gray-500">No subscription plans yet</div>
         ) : (

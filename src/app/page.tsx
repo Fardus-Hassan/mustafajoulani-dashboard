@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import MetricCard from "@/components/MetricCard";
+import {
+  Skeleton,
+  SkeletonMetricCard,
+  SkeletonTableRow,
+} from "@/components/Skeleton";
 import { useAppSelector } from "@/store/hooks";
 import {
   getDashboardOverview,
@@ -164,8 +169,63 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center p-6">
-        <p className="text-gray-500">Loading dashboard…</p>
+      <div className="p-6 md:p-8 lg:p-10">
+        <header className="mb-8 md:mb-10">
+          <Skeleton className="h-9 w-48 md:h-10 md:w-56" />
+          <Skeleton className="mt-2 h-5 w-72 md:h-6" />
+        </header>
+        <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 md:mb-10 lg:gap-6">
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+        </section>
+        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+          <Skeleton className="h-7 w-48 md:h-8 md:w-56" />
+          <Skeleton className="mt-1.5 h-5 w-72 md:h-6" />
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full min-w-[400px] text-left text-base">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="pb-4 pt-1"><Skeleton className="h-5 w-24" /></th>
+                  <th className="pb-4 pt-1 text-right"><Skeleton className="ml-auto h-5 w-16" /></th>
+                  <th className="pb-4 pt-1 text-right"><Skeleton className="ml-auto h-5 w-14" /></th>
+                  <th className="pb-4 pt-1 text-right"><Skeleton className="ml-auto h-5 w-24" /></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <SkeletonTableRow key={i} cols={4} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:mt-10 md:p-8">
+          <Skeleton className="h-7 w-40 md:h-8" />
+          <Skeleton className="mt-1.5 h-5 w-64 md:h-6" />
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <Skeleton className="h-11 min-w-[200px] flex-1 rounded-lg" />
+            <Skeleton className="h-11 w-24 rounded-lg" />
+            <Skeleton className="h-11 w-28 rounded-lg" />
+            <Skeleton className="h-11 w-24 rounded-lg" />
+          </div>
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-base">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                    <th key={i} className="pb-4 pt-1"><Skeleton className="h-5 w-16" /></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <SkeletonTableRow key={i} cols={7} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     );
   }
@@ -356,11 +416,11 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {usersLoading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">
-                    Loading users…
-                  </td>
-                </tr>
+                <>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <SkeletonTableRow key={i} cols={7} />
+                  ))}
+                </>
               ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gray-500">

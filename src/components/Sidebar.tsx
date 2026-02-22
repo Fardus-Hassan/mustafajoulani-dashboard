@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import toast from "react-hot-toast";
 import { logout, clearAuthStorage } from "@/store/slices/authSlice";
+import { Skeleton } from "./Skeleton";
 
 const FALLBACK_IMAGE = "/user.png";
 
@@ -117,15 +118,19 @@ export default function Sidebar() {
       </nav>
       <div className="border-t border-gray-200/80 p-4">
         <div className="flex items-center gap-3 px-1 py-2">
-          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
-            <Image
-              src={profileImage}
-              alt="Profile"
-              fill
-              sizes="44px"
-              className="object-cover"
-            />
-          </div>
+          {adminSettings == null ? (
+            <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+          ) : (
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
+              <Image
+                src={profileImage}
+                alt="Profile"
+                fill
+                sizes="44px"
+                className="object-cover"
+              />
+            </div>
+          )}
           <button
             type="button"
             onClick={handleLogout}

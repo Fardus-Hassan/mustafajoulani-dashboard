@@ -10,6 +10,7 @@ import {
   updateProfilePhoto,
   updatePassword,
 } from "@/lib/api/settings";
+import { Skeleton, SkeletonProfileCard, SkeletonPasswordCard } from "@/components/Skeleton";
 
 function PersonIcon() {
   return (
@@ -212,6 +213,25 @@ export default function SettingsPage() {
     }
     dispatch(setAdminSettings(result.data));
     toast.success("Profile photo updated");
+  }
+
+  if (adminSettings == null) {
+    return (
+      <div className="min-h-screen bg-white px-6 py-10 md:px-8 md:py-12 lg:px-12 lg:py-14">
+        <div className="mx-auto">
+          <div className="mb-8 md:mb-10">
+            <Skeleton className="h-8 w-64 sm:h-9 md:h-10 md:w-80" />
+            <Skeleton className="mt-1.5 h-5 w-72" />
+          </div>
+          <div className="mb-6 md:mb-8">
+            <SkeletonProfileCard />
+          </div>
+          <div>
+            <SkeletonPasswordCard />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
