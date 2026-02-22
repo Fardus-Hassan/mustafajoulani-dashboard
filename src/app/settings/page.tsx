@@ -2,7 +2,10 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import AvatarPlaceholder from "@/components/AvatarPlaceholder";
+import toast from "react-hot-toast";
 import { useAppSelector } from "@/store/hooks";
+import { updatePassword } from "@/lib/api/settings";
 
 function PersonIcon() {
   return (
@@ -38,7 +41,10 @@ const AVATAR_PLACEHOLDER = "/avatar-placeholder.svg";
 
 export default function SettingsPage() {
   const user = useAppSelector((s) => s.auth.user);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
   const adminSettings = useAppSelector((s) => s.adminSettings.data);
+  const [passwordError, setPasswordError] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -50,8 +56,11 @@ export default function SettingsPage() {
     confirm: "",
   });
 
+  const settingsImage = adminSettings?.image;
   const profileImage =
-    adminSettings?.image ?? user?.profileImage ?? AVATAR_PLACEHOLDER;
+    adminSettings != null && (settingsImage == null || settingsImage === "")
+      ? AVATAR_PLACEHOLDER
+      : (settingsImage || user?.profileImage || AVATAR_PLACEHOLDER);
 
   useEffect(() => {
     if (adminSettings) {
@@ -85,6 +94,45 @@ export default function SettingsPage() {
     user?.name,
     user?.email,
   ]);
+
+  async function handleSavePassword() {
+    setPasswordError("");
+    if (!password.current.trim()) {
+      setPasswordError("Enter your current password");
+      return;
+    }
+    if (!password.new.trim()) {
+      setPasswordError("Enter a new password");
+      return;
+    }
+    if (password.new !== password.confirm) {
+      setPasswordError("New password and confirm password do not match");
+      return;
+    }
+    if (!accessToken) {
+      toast.error("You must be logged in to change password");
+      return;
+    }
+    setSavingPassword(true);
+    const result = await updatePassword(accessToken, {
+      oldPassword: password.current,
+      newPassword: password.new,
+      confirmNewPassword: password.confirm,
+    });
+    setSavingPassword(false);
+    if (!result.ok) {
+      setPasswordError(result.message);
+      toast.error(result.message);
+      return;
+    }
+    toast.success(result.message);
+    setPassword({ current: "", new: "", confirm: "" });
+  }
+
+  function handleCancel() {
+    setPassword({ current: "", new: "", confirm: "" });
+    setPasswordError("");
+  }
 
   return (
     <div className="min-h-screen bg-white px-6 py-10 md:px-8 md:py-12 lg:px-12 lg:py-14">
@@ -124,13 +172,17 @@ export default function SettingsPage() {
               </label>
               <div className="mt-1.5 flex items-center gap-4">
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-[#E8F4FC] ring-2 ring-[#3E8DB9]/20">
-                  <Image
-                    src={profileImage}
-                    alt="Profile"
-                    fill
-                    sizes="80px"
-                    className="object-cover"
-                  />
+                  {profileImage === AVATAR_PLACEHOLDER ? (
+                    <AvatarPlaceholder className="absolute inset-0 h-full w-full " />
+                  ) : (
+                    <Image
+                      src={profileImage}
+                      alt="Profile"
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  )}
                 </div>
                 <button
                   type="button"
@@ -208,6 +260,11 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-5">
+            {passwordError && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                {passwordError}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Current Password
@@ -257,15 +314,18 @@ export default function SettingsPage() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
+            onClick={handleCancel}
             className="rounded-lg border border-[#3E8DB9] bg-white px-6 py-3 text-base font-medium text-[#3E8DB9] transition-colors hover:bg-[#E8F4FC]"
           >
             Cancel
           </button>
           <button
             type="button"
-            className="rounded-lg bg-[#3E8DB9] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[#2d7aa8]"
+            onClick={handleSavePassword}
+            disabled={savingPassword}
+            className="rounded-lg bg-[#3E8DB9] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[#2d7aa8] disabled:opacity-60"
           >
-            Save
+            {savingPassword ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

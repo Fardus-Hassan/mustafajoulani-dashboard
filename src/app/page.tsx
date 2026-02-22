@@ -1,4 +1,17 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import MetricCard from "@/components/MetricCard";
+import { useAppSelector } from "@/store/hooks";
+import {
+  getDashboardOverview,
+  getDashboardUsers,
+} from "@/lib/api/dashboard";
+import type {
+  DashboardOverviewData,
+  DashboardUser,
+  DashboardUsersMeta,
+} from "@/lib/api/dashboard";
 
 function UsersIcon() {
   return (
@@ -28,40 +41,153 @@ function RevenueIcon() {
   );
 }
 
-const subscriptionPlans = [
-  { planName: "Free", users: "721", price: "$0", totalRevenue: "$0" },
-  { planName: "Base", users: "1,234", price: "$9.99", totalRevenue: "$12,327.66" },
-  { planName: "Premium", users: "892", price: "$39.99", totalRevenue: "$35,671.08" },
-];
+function formatRevenue(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
-const users = [
-  { name: "Sarah Johnson", email: "sarah.j@email.com", plan: "Premium" as const, status: "Active" as const, nextBilling: "2026-02-15" },
-  { name: "Michael Chen", email: "mchen@email.com", plan: "Base" as const, status: "Active" as const, nextBilling: "2026-02-10" },
-  { name: "Emma Williams", email: "emma.w@email.com", plan: "Premium" as const, status: "Active" as const, nextBilling: "2026-02-18" },
-  { name: "James Brown", email: "jbrown@email.com", plan: "Base" as const, status: "Paused" as const, nextBilling: "2026-03-01" },
-  { name: "Olivia Davis", email: "olivia.d@email.com", plan: "Free" as const, status: "Active" as const, nextBilling: "-" },
-  { name: "William Martinez", email: "w.martinez@email.com", plan: "Premium" as const, status: "Active" as const, nextBilling: "2026-02-20" },
-  { name: "Sophia Garcia", email: "sophia.g@email.com", plan: "Base" as const, status: "Active" as const, nextBilling: "2026-02-12" },
-  { name: "Liam Anderson", email: "liam.a@email.com", plan: "Free" as const, status: "Active" as const, nextBilling: "-" },
-];
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-US");
+  } catch {
+    return value;
+  }
+}
 
-function PlanBadge({ plan }: { plan: string }) {
-  if (plan === "Premium")
-    return <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-800">Premium</span>;
-  if (plan === "Base")
-    return <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">Base</span>;
-  return <span className="text-base text-gray-700 px-3 py-1 bg-[#F3F4F6] rounded-full">Free</span>;
+function getPaginationPages(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages: (number | "ellipsis")[] = [];
+  const showLeft = current > 3;
+  const showRight = current < total - 2;
+  pages.push(1);
+  if (showLeft) pages.push("ellipsis");
+  const start = showLeft ? Math.max(2, current - 1) : 2;
+  const end = showRight ? Math.min(total - 1, current + 1) : total - 1;
+  for (let i = start; i <= end; i++) {
+    if (i !== 1 && i !== total) pages.push(i);
+  }
+  if (showRight) pages.push("ellipsis");
+  if (total > 1) pages.push(total);
+  return pages;
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "Active")
-    return <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">Active</span>;
-  if (status === "Paused")
-    return <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">Paused</span>;
-  return <span className="text-base text-gray-600 md:text-lg">{status}</span>;
+  const s = status.toUpperCase();
+  if (s === "ACTIVE")
+    return (
+      <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
+        Active
+      </span>
+    );
+  if (s === "PAUSED" || s === "CANCELLED")
+    return (
+      <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
+        {s === "PAUSED" ? "Paused" : "Cancelled"}
+      </span>
+    );
+  if (s === "EXPIRED")
+    return (
+      <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+        Expired
+      </span>
+    );
+  return (
+    <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+      {status}
+    </span>
+  );
 }
 
+const USERS_PAGE_SIZE_OPTIONS = [5, 10, 20, 30, 40, 50];
+
 export default function DashboardPage() {
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const [data, setData] = useState<DashboardOverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [users, setUsers] = useState<DashboardUser[]>([]);
+  const [usersMeta, setUsersMeta] = useState<DashboardUsersMeta | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersLimit, setUsersLimit] = useState(10);
+  const [usersSearch, setUsersSearch] = useState("");
+  const [usersSearchInput, setUsersSearchInput] = useState("");
+  const [usersStatus, setUsersStatus] = useState("");
+  const [usersPlanName, setUsersPlanName] = useState("");
+
+  useEffect(() => {
+    if (!accessToken) {
+      const id = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(id);
+    }
+    let cancelled = false;
+    getDashboardOverview(accessToken).then((result) => {
+      if (cancelled) return;
+      setLoading(false);
+      if (result.ok) setData(result.data);
+      else setError(result.message);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const id = setTimeout(() => setUsersLoading(true), 0);
+    getDashboardUsers(accessToken, {
+      page: usersPage,
+      limit: usersLimit,
+      search: usersSearch || undefined,
+      status: usersStatus || undefined,
+      planName: usersPlanName || undefined,
+    }).then((result) => {
+      setUsersLoading(false);
+      if (result.ok) {
+        setUsers(result.data.users);
+        setUsersMeta(result.data.meta);
+      } else {
+        setUsers([]);
+        setUsersMeta(null);
+      }
+    });
+    return () => clearTimeout(id);
+  }, [accessToken, usersPage, usersLimit, usersSearch, usersStatus, usersPlanName]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-6">
+        <p className="text-gray-500">Loading dashboard…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 md:p-8 lg:p-10">
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-red-700">{error}</div>
+      </div>
+    );
+  }
+
+  const metrics = data?.metrics ?? {
+    activeUsers: 0,
+    totalSubscribers: 0,
+    totalRevenue: 0,
+  };
+  const subscriptionPlans = data?.subscriptionPlans ?? [];
+  const planNames = [
+    ...new Set(subscriptionPlans.map((p) => p.planName).filter(Boolean)),
+  ];
+
   return (
     <div className="p-6 md:p-8 lg:p-10">
       <header className="mb-8 md:mb-10">
@@ -70,12 +196,24 @@ export default function DashboardPage() {
       </header>
 
       <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 md:mb-10 lg:gap-6">
-        <MetricCard title="Total Active Users" value="2,847" icon={<UsersIcon />} />
-        <MetricCard title="Total Subscribers" value="1,500" icon={<SubscribersIcon />} />
-        <MetricCard title="Total Revenue" value="$47,820" icon={<RevenueIcon />} />
+        <MetricCard
+          title="Total Active Users"
+          value={metrics.activeUsers.toLocaleString()}
+          icon={<UsersIcon />}
+        />
+        <MetricCard
+          title="Total Subscribers"
+          value={metrics.totalSubscribers.toLocaleString()}
+          icon={<SubscribersIcon />}
+        />
+        <MetricCard
+          title="Total Revenue"
+          value={formatRevenue(metrics.totalRevenue)}
+          icon={<RevenueIcon />}
+        />
       </section>
 
-      <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:mb-10 md:p-8">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
         <h2 className="text-xl font-bold text-gray-900 md:text-2xl">Subscription Plans</h2>
         <p className="mt-1.5 text-base text-gray-500 md:text-lg">Overview of plan performance and revenue</p>
         <div className="mt-6 overflow-x-auto">
@@ -89,46 +227,255 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {subscriptionPlans.map((row) => (
-                <tr key={row.planName} className="border-b border-gray-100">
-                  <td className="py-4 text-base font-medium text-gray-900 md:text-lg">{row.planName}</td>
-                  <td className="py-4 text-right text-base text-gray-700 md:text-lg">{row.users}</td>
-                  <td className="py-4 text-right text-base text-gray-700 md:text-lg">{row.price}</td>
-                  <td className="py-4 text-right text-base text-gray-700 md:text-lg">{row.totalRevenue}</td>
+              {subscriptionPlans.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                    No subscription plans yet
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                subscriptionPlans.map((row) => (
+                  <tr key={row.planId} className="border-b border-gray-100">
+                    <td className="py-4 text-base font-medium text-gray-900 md:text-lg">{row.planName}</td>
+                    <td className="py-4 text-right text-base text-gray-700 md:text-lg">
+                      {row.users.toLocaleString()}
+                    </td>
+                    <td className="py-4 text-right text-base text-gray-700 md:text-lg">
+                      {formatRevenue(row.price)}
+                    </td>
+                    <td className="py-4 text-right text-base text-gray-700 md:text-lg">
+                      {formatRevenue(row.totalRevenue)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:mt-10 md:p-8">
         <h2 className="text-xl font-bold text-gray-900 md:text-2xl">User Management</h2>
-        <p className="mt-1.5 text-base text-gray-500 md:text-lg">Manage user subscriptions and status</p>
+        <p className="mt-1.5 text-base text-gray-500 md:text-lg">
+          Manage user subscriptions and status
+        </p>
+
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label htmlFor="users-search" className="sr-only">
+              Search by name or email
+            </label>
+            <input
+              id="users-search"
+              type="search"
+              placeholder="Search by name or email…"
+              value={usersSearchInput}
+              onChange={(e) => setUsersSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setUsersSearch(usersSearchInput)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-base text-gray-900 placeholder-gray-500 focus:border-[#3E8DB9] focus:outline-none focus:ring-1 focus:ring-[#3E8DB9]"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setUsersSearch(usersSearchInput)}
+            className="rounded-lg bg-[#3E8DB9] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2d7aa8]"
+          >
+            Search
+          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="users-status" className="text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              id="users-status"
+              value={usersStatus}
+              onChange={(e) => {
+                setUsersStatus(e.target.value);
+                setUsersPage(1);
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:border-[#3E8DB9] focus:outline-none focus:ring-1 focus:ring-[#3E8DB9]"
+            >
+              <option value="">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PAUSED">Paused</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+            <label htmlFor="users-plan" className="text-sm font-medium text-gray-700">
+              Plan
+            </label>
+            <select
+              id="users-plan"
+              value={usersPlanName}
+              onChange={(e) => {
+                setUsersPlanName(e.target.value);
+                setUsersPage(1);
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:border-[#3E8DB9] focus:outline-none focus:ring-1 focus:ring-[#3E8DB9]"
+            >
+              <option value="">All plans</option>
+              {planNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="users-limit" className="text-sm font-medium text-gray-700">
+              Per page
+            </label>
+            <select
+              id="users-limit"
+              value={usersLimit}
+              onChange={(e) => {
+                setUsersLimit(Number(e.target.value));
+                setUsersPage(1);
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:border-[#3E8DB9] focus:outline-none focus:ring-1 focus:ring-[#3E8DB9]"
+            >
+              {USERS_PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[600px] text-left text-base">
+          <table className="w-full min-w-[700px] text-left text-base">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
                 <th className="pb-4 pt-1 text-base font-semibold md:text-lg">User</th>
                 <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Email</th>
                 <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Plan</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Price</th>
                 <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Status</th>
                 <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Next Billing</th>
+                <th className="pb-4 pt-1 text-base font-semibold md:text-lg">Auto Renew</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.email} className="border-b border-gray-100">
-                  <td className="py-4 text-base font-medium text-gray-900 md:text-lg">{user.name}</td>
-                  <td className="py-4 text-base text-gray-600 md:text-lg">{user.email}</td>
-                  <td className="py-4"><PlanBadge plan={user.plan} /></td>
-                  <td className="py-4"><StatusBadge status={user.status} /></td>
-                  <td className="py-4 text-base text-gray-600 md:text-lg">{user.nextBilling}</td>
+              {usersLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    Loading users…
+                  </td>
                 </tr>
-              ))}
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    No users found
+                  </td>
+                </tr>
+              ) : (
+                users.map((row) => (
+                  <tr key={row.userId} className="border-b border-gray-100">
+                    <td className="py-4 text-base font-medium text-gray-900 md:text-lg">
+                      {row.name || "—"}
+                    </td>
+                    <td className="py-4 text-base text-gray-600 md:text-lg">{row.email}</td>
+                    <td className="py-4 text-base text-gray-700 md:text-lg">
+                      {row.planName || "N/A"}
+                    </td>
+                    <td className="py-4 text-base text-gray-700 md:text-lg">
+                      {formatRevenue(row.planPrice)}
+                    </td>
+                    <td className="py-4">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="py-4 text-base text-gray-600 md:text-lg">
+                      {formatDate(row.nextBilling)}
+                    </td>
+                    <td className="py-4 text-base text-gray-600 md:text-lg">
+                      {row.autoRenew ? "Yes" : "No"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {usersMeta && usersMeta.totalPages > 1 && (
+          <div className="mt-6 flex flex-col gap-4 border-t border-gray-200 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600">
+              Showing {(usersMeta.page - 1) * usersMeta.limit + 1}–
+              {Math.min(usersMeta.page * usersMeta.limit, usersMeta.total)} of{" "}
+              {usersMeta.total.toLocaleString()} users
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setUsersPage(1)}
+                disabled={usersMeta.page <= 1 || usersLoading}
+                aria-label="First page"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span className="sr-only">First</span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 7l-7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                disabled={usersMeta.page <= 1 || usersLoading}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {getPaginationPages(usersMeta.page, usersMeta.totalPages).map((item, i) =>
+                  item === "ellipsis" ? (
+                    <span
+                      key={`ellipsis-${i}`}
+                      className="flex h-9 min-w-9 items-center justify-center px-1 text-gray-400"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setUsersPage(item)}
+                      disabled={usersLoading}
+                      aria-label={`Page ${item}`}
+                      aria-current={usersMeta.page === item ? "page" : undefined}
+                      className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-colors ${
+                        usersMeta.page === item
+                          ? "border-[#3E8DB9] bg-[#3E8DB9] text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      } disabled:pointer-events-none disabled:opacity-50`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setUsersPage((p) => Math.min(usersMeta.totalPages, p + 1))}
+                disabled={usersMeta.page >= usersMeta.totalPages || usersLoading}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setUsersPage(usersMeta.totalPages)}
+                disabled={usersMeta.page >= usersMeta.totalPages || usersLoading}
+                aria-label="Last page"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span className="sr-only">Last</span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

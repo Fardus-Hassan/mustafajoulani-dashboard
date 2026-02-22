@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import AvatarPlaceholder from "./AvatarPlaceholder";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -65,8 +66,11 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const adminSettings = useAppSelector((s) => s.adminSettings.data);
   const authUser = useAppSelector((s) => s.auth.user);
+  const settingsImage = adminSettings?.image;
   const profileImage =
-    adminSettings?.image ?? authUser?.profileImage ?? AVATAR_PLACEHOLDER;
+    adminSettings != null && (settingsImage == null || settingsImage === "")
+      ? AVATAR_PLACEHOLDER
+      : (settingsImage || authUser?.profileImage || AVATAR_PLACEHOLDER);
 
   function handleLogout() {
     dispatch(logout());
@@ -113,13 +117,17 @@ export default function Sidebar() {
       <div className="border-t border-gray-200/80 p-4">
         <div className="flex items-center gap-3 px-1 py-2">
           <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
-            <Image
-              src={profileImage}
-              alt="Profile"
-              fill
-              sizes="44px"
-              className="object-cover"
-            />
+            {profileImage === AVATAR_PLACEHOLDER ? (
+              <AvatarPlaceholder className="absolute inset-0 h-full w-full" />
+            ) : (
+              <Image
+                src={profileImage}
+                alt="Profile"
+                fill
+                sizes="44px"
+                className="object-cover"
+              />
+            )}
           </div>
           <button
             type="button"
