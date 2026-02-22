@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin Dashboard",
-  description: "Admin Dashboard",
+  title: "Dashboard",
+  description: "Dashboard",
   icons: {
     icon: [{ url: "/logo.png", type: "image/png", sizes: "any" }],
     shortcut: "/logo.png",
