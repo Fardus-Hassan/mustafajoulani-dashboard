@@ -412,18 +412,18 @@ export default function DashboardPage() {
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
               >
                 <span className="sr-only">First</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 7l-7-7 7 7" />
+                <svg className="h-4 w-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
                 disabled={usersMeta.page <= 1 || usersLoading}
                 className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
               >
                 Previous
-              </button>
+              </button> */}
               <div className="flex items-center gap-1">
                 {getPaginationPages(usersMeta.page, usersMeta.totalPages).map((item, i) =>
                   item === "ellipsis" ? (
@@ -453,14 +453,14 @@ export default function DashboardPage() {
                   )
                 )}
               </div>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setUsersPage((p) => Math.min(usersMeta.totalPages, p + 1))}
                 disabled={usersMeta.page >= usersMeta.totalPages || usersLoading}
                 className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
               >
                 Next
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => setUsersPage(usersMeta.totalPages)}
