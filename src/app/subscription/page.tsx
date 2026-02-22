@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import PlanCard, { type Plan } from "@/components/PlanCard";
 import PlanFormModal from "@/components/PlanFormModal";
 import { SkeletonPlanCard } from "@/components/Skeleton";
-import { useAppSelector } from "@/store/hooks";
-import {
-  getSubscriptionPlans,
-  deleteSubscriptionPlan,
-} from "@/lib/api/subscription";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { appApi } from "@/store/api/appApi";
+import { useGetSubscriptionPlansQuery } from "@/store/api/appApi";
+import { deleteSubscriptionPlan } from "@/lib/api/subscription";
 import type { SubscriptionPlan } from "@/lib/api/subscription";
 import toast from "react-hot-toast";
 
@@ -36,38 +35,22 @@ function mapApiPlanToPlan(api: SubscriptionPlan): Plan {
 }
 
 export default function SubscriptionPlansPage() {
+  const dispatch = useAppDispatch();
   const accessToken = useAppSelector((s) => s.auth.accessToken);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [apiPlans, setApiPlans] = useState<SubscriptionPlan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: apiPlans = [], isLoading: loading, error: queryError } = useGetSubscriptionPlansQuery(
+    undefined,
+    { skip: !accessToken }
+  );
+  const plans = apiPlans.map(mapApiPlanToPlan);
+  const error = queryError ? ("message" in queryError ? queryError.message : "Failed to load") : "";
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
 
-  const fetchPlans = useCallback(() => {
-    if (!accessToken) return;
-    getSubscriptionPlans(accessToken).then((result) => {
-      setLoading(false);
-      if (result.ok) {
-        setApiPlans(result.data);
-        setPlans(result.data.map(mapApiPlanToPlan));
-        setError("");
-      } else {
-        setError(result.message);
-        setPlans([]);
-        setApiPlans([]);
-      }
-    });
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (!accessToken) {
-      const id = setTimeout(() => setLoading(false), 0);
-      return () => clearTimeout(id);
-    }
-    fetchPlans();
-  }, [accessToken, fetchPlans]);
+  function invalidatePlans() {
+    dispatch(appApi.util.invalidateTags(["SubscriptionPlans"]));
+  }
 
   function openCreateModal() {
     setModalMode("create");
@@ -90,7 +73,7 @@ export default function SubscriptionPlansPage() {
     deleteSubscriptionPlan(accessToken, planId).then((result) => {
       if (result.ok) {
         toast.success("Plan deleted");
-        fetchPlans();
+        invalidatePlans();
       } else {
         toast.error(result.message);
       }
@@ -156,7 +139,7 @@ export default function SubscriptionPlansPage() {
           initialData={editingPlan}
           accessToken={accessToken}
           onClose={() => setModalOpen(false)}
-          onSuccess={fetchPlans}
+          onSuccess={invalidatePlans}
         />
       </div>
     </div>

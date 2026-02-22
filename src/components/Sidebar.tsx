@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useGetAdminSettingsQuery } from "@/store/api/appApi";
 import toast from "react-hot-toast";
 import { logout, clearAuthStorage } from "@/store/slices/authSlice";
 import { Skeleton } from "./Skeleton";
@@ -64,7 +65,10 @@ export default function Sidebar() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const adminSettings = useAppSelector((s) => s.adminSettings.data);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const { data: adminSettings } = useGetAdminSettingsQuery(undefined, {
+    skip: !accessToken,
+  });
   const authUser = useAppSelector((s) => s.auth.user);
   const settingsImage = adminSettings?.image;
   const hasImage =

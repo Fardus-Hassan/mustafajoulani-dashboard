@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import MetricCard from "@/components/MetricCard";
 import {
   Skeleton,
@@ -9,14 +9,9 @@ import {
 } from "@/components/Skeleton";
 import { useAppSelector } from "@/store/hooks";
 import {
-  getDashboardOverview,
-  getDashboardUsers,
-} from "@/lib/api/dashboard";
-import type {
-  DashboardOverviewData,
-  DashboardUser,
-  DashboardUsersMeta,
-} from "@/lib/api/dashboard";
+  useGetDashboardOverviewQuery,
+  useGetDashboardUsersQuery,
+} from "@/store/api/appApi";
 
 function UsersIcon() {
   return (
@@ -115,12 +110,6 @@ const USERS_PAGE_SIZE_OPTIONS = [5, 10, 20, 30, 40, 50];
 
 export default function DashboardPage() {
   const accessToken = useAppSelector((s) => s.auth.accessToken);
-  const [data, setData] = useState<DashboardOverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [users, setUsers] = useState<DashboardUser[]>([]);
-  const [usersMeta, setUsersMeta] = useState<DashboardUsersMeta | null>(null);
-  const [usersLoading, setUsersLoading] = useState(false);
   const [usersPage, setUsersPage] = useState(1);
   const [usersLimit, setUsersLimit] = useState(10);
   const [usersSearch, setUsersSearch] = useState("");
@@ -128,44 +117,29 @@ export default function DashboardPage() {
   const [usersStatus, setUsersStatus] = useState("");
   const [usersPlanName, setUsersPlanName] = useState("");
 
-  useEffect(() => {
-    if (!accessToken) {
-      const id = setTimeout(() => setLoading(false), 0);
-      return () => clearTimeout(id);
-    }
-    let cancelled = false;
-    getDashboardOverview(accessToken).then((result) => {
-      if (cancelled) return;
-      setLoading(false);
-      if (result.ok) setData(result.data);
-      else setError(result.message);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken]);
+  const {
+    data,
+    isLoading: loading,
+    error: overviewError,
+  } = useGetDashboardOverviewQuery(undefined, { skip: !accessToken });
 
-  useEffect(() => {
-    if (!accessToken) return;
-    const id = setTimeout(() => setUsersLoading(true), 0);
-    getDashboardUsers(accessToken, {
-      page: usersPage,
-      limit: usersLimit,
-      search: usersSearch || undefined,
-      status: usersStatus || undefined,
-      planName: usersPlanName || undefined,
-    }).then((result) => {
-      setUsersLoading(false);
-      if (result.ok) {
-        setUsers(result.data.users);
-        setUsersMeta(result.data.meta);
-      } else {
-        setUsers([]);
-        setUsersMeta(null);
-      }
-    });
-    return () => clearTimeout(id);
-  }, [accessToken, usersPage, usersLimit, usersSearch, usersStatus, usersPlanName]);
+  const usersParams = {
+    page: usersPage,
+    limit: usersLimit,
+    search: usersSearch || undefined,
+    status: usersStatus || undefined,
+    planName: usersPlanName || undefined,
+  };
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+  } = useGetDashboardUsersQuery(usersParams, { skip: !accessToken });
+
+  const users = usersData?.users ?? [];
+  const usersMeta = usersData?.meta ?? null;
+  const error = overviewError
+    ? ("message" in overviewError ? overviewError.message : "Failed to load")
+    : "";
 
   if (loading) {
     return (
@@ -338,7 +312,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setUsersSearch(usersSearchInput)}
-            className="rounded-lg bg-[#3E8DB9] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2d7aa8]"
+            className="rounded-lg bg-[#3E8DB9] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2d7aa8] xl:mr-10"
           >
             Search
           </button>

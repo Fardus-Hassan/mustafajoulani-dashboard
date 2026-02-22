@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import adminSettingsReducer from "./slices/adminSettingsSlice";
+import { appApi } from "./api/appApi";
 import apiReducer from "./slices/apiSlice";
 import appReducer from "./slices/appSlice";
 import authReducer from "./slices/authSlice";
@@ -10,8 +10,10 @@ export const makeStore = () => {
       app: appReducer,
       api: apiReducer,
       auth: authReducer,
-      adminSettings: adminSettingsReducer,
+      [appApi.reducerPath]: appApi.reducer,
     },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware().concat(appApi.middleware),
   });
 };
 

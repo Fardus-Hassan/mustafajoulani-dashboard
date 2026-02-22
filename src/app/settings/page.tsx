@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setAdminSettings } from "@/store/slices/adminSettingsSlice";
+import { appApi } from "@/store/api/appApi";
+import { useGetAdminSettingsQuery } from "@/store/api/appApi";
 import {
   updateProfile,
   updateProfilePhoto,
@@ -48,7 +49,9 @@ export default function SettingsPage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const accessToken = useAppSelector((s) => s.auth.accessToken);
-  const adminSettings = useAppSelector((s) => s.adminSettings.data);
+  const { data: adminSettings, isLoading: settingsLoading } = useGetAdminSettingsQuery(undefined, {
+    skip: !accessToken,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [isPasswordEditing, setIsPasswordEditing] = useState(false);
@@ -179,7 +182,7 @@ export default function SettingsPage() {
       toast.error(result.message);
       return;
     }
-    dispatch(setAdminSettings(result.data));
+    dispatch(appApi.util.invalidateTags(["AdminSettings"]));
     toast.success("Profile updated");
     setIsProfileEditing(false);
   }
@@ -211,11 +214,11 @@ export default function SettingsPage() {
       toast.error(result.message);
       return;
     }
-    dispatch(setAdminSettings(result.data));
+    dispatch(appApi.util.invalidateTags(["AdminSettings"]));
     toast.success("Profile photo updated");
   }
 
-  if (adminSettings == null) {
+  if (settingsLoading || adminSettings == null) {
     return (
       <div className="min-h-screen bg-white px-6 py-10 md:px-8 md:py-12 lg:px-12 lg:py-14">
         <div className="mx-auto">
